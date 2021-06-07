@@ -1,0 +1,4 @@
+pyqt5
+bs4
+requests
+requests[socks]
