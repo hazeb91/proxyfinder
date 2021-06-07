@@ -146,20 +146,22 @@ class ProxyFinder:
         self.conn_timeout = conn_timeout
         self.proxy_queue = queue.Queue()
         self.result_queue = queue.Queue()
-        self.proxy_found = self._get_proxy_list()
+        self.proxy_found = []
         self.all_results = []
         self.threads = []
 
-    def _get_proxy_list(self):
+    def get_proxies(self):
         """Retrive all proxies available in plugins
 
         Returns:
             list: All proxies found
         """
+        proxy_list = get_proxy_list()
         if self.max_proxies > 0:
-            return get_proxy_list()[:self.max_proxies - 1]
+            self.proxy_found = proxy_list[:self.max_proxies - 1]
         else:
-            return get_proxy_list()
+            self.proxy_found = proxy_list
+        return self.proxy_found
 
     def get_last_results(self):
         """Retrive last working proxies found
@@ -223,6 +225,9 @@ class ProxyFinder:
     def start(self):
         """Start threads and processes
         """
+        if not self.proxy_found:
+            self.get_proxies()
+
         # Put proxies in queue
         for i, proxy in enumerate(self.proxy_found, 1):
             if i == self.max_proxies:

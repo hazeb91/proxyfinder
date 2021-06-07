@@ -288,7 +288,7 @@ class ProxyFinderGUI(QMainWindow):
 
         # Initialize values
         self.tree_widget_out.clear()
-        self.progress_bar.setRange(0, len(self.worker.pf.proxy_found))
+        self.progress_bar.setRange(0, len(self.worker.pf.get_proxies()))
         self.progress_bar.setValue(0)
         self.stop_button.setDisabled(False)
         self.start_button.setDisabled(True)
