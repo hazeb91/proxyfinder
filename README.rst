@@ -28,6 +28,16 @@ Features
 
 * TODO
 
+Installation
+------------
+
+.. code-block::
+        git clone https://github.com/hazeb91/proxyfinder
+        cd proxyfinder
+        pip install -r requirements.txt
+        python setup.py install
+
+
 Credits
 -------
 
