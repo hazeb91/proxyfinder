@@ -40,6 +40,16 @@ Installation
    python setup.py install
 
 
+Usage
+-----
+
+Start GUI:
+
+.. code-block:: rst
+
+   python -m proxyfinder.gui
+
+
 Credits
 -------
 
