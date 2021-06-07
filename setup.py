@@ -28,7 +28,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    description="Proxy Finder is a finder and tester of proxies.",
+    description="Proxy Finder searches and checks the validity of proxies.",
     entry_points={
         'console_scripts': [
             'proxyfinder=proxyfinder.cli:main',
