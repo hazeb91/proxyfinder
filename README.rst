@@ -16,7 +16,7 @@ Proxy Finder
 
 
 
-Proxy Finder is a finder and tester of proxies.
+Proxy Finder searches and checks the validity of proxies.
 
 
 * Free software: MIT license
