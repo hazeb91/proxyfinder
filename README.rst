@@ -1,6 +1,6 @@
-============
-Proxy Finder
-============
+===========
+ProxyFinder
+===========
 
 
 .. image:: https://img.shields.io/pypi/v/proxyfinder.svg
@@ -16,17 +16,20 @@ Proxy Finder
 
 
 
-Proxy Finder searches and checks the validity of proxies.
+ProxyFinder is a tool to find the proxy server addresses from the web and check if them are online.
 
 
 * Free software: MIT license
-* Documentation: https://proxyfinder.readthedocs.io.
+
+..
+        * Documentation: https://proxyfinder.readthedocs.io.
 
 
 Features
 --------
 
-* TODO
+* Search for proxy server addresses
+* Check each proxy on a determinate website
 
 
 Installation
@@ -43,7 +46,7 @@ Installation
 Usage
 -----
 
-Start GUI:
+Run the GUI
 
 .. code-block:: rst
 
