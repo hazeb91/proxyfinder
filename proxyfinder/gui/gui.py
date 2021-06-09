@@ -1,28 +1,25 @@
 """ProxyFinder GUI
 """
 
-import os.path
 import sys
 import time
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QLineEdit, QGridLayout,
     QWidget, QPushButton, QProgressBar, QAction, QStatusBar, QLabel, QMenu,
     QHBoxLayout, QSpinBox, QDoubleSpinBox, QMessageBox, QComboBox, QTreeWidget,
-    QTreeWidgetItem, QAbstractItemView, QCheckBox)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QRegExp, QSettings, QSize
+    QTreeWidgetItem, QAbstractItemView, QCheckBox, QActionGroup)
+from PyQt5.QtCore import (Qt, QThread, pyqtSignal, QRegExp, QSettings, QSize,
+    QTranslator, QCoreApplication, QLocale, QLibraryInfo)
 from PyQt5.QtGui import QRegExpValidator, QIcon
 
-from .. import proxyfinder
 from .. import __version__
 from .. import __author__
 from .. import __email__
+from .. import proxyfinder
+from . import utils
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "user_settings.ini")
-IMAGES_PATH = os.path.join(os.path.dirname(__file__), "images")
 
-
-def _image(filename):
-    return os.path.join(IMAGES_PATH, filename)
+settings = QSettings(utils.CONFIG_PATH, QSettings.IniFormat)
 
 
 class Worker(QThread):
@@ -54,7 +51,7 @@ class Worker(QThread):
 
             self.updateOutputSignal.emit(self.pf.get_last_results())
             self.updateTimeLeftSignal.emit(self.pf.get_estimated_time())
-            # -1 to not reach 100% while process is not finished
+            # -1 to reach up to 99% while process is not finished
             self.updateValueSignal.emit(progress - 1)
             time.sleep(0.2)
         if not self._kill:
@@ -70,8 +67,6 @@ class ProxyFinderGUI(QMainWindow):
     # pylint: disable=invalid-name
     # pylint: disable=attribute-defined-outside-init
 
-    settings = QSettings(CONFIG_PATH, QSettings.IniFormat)
-
     def __init__(self):
         super().__init__()
 
@@ -82,41 +77,65 @@ class ProxyFinderGUI(QMainWindow):
         """
         self.setMinimumSize(QSize(600, 400))
         self.resize(800, 500)
-        self.setWindowTitle("Proxy Finder")
-        self.setWindowIcon(QIcon(_image("icon.png")))
+        self.setWindowTitle("ProxyFinder")
+        self.setWindowIcon(QIcon(utils.image("icon.png")))
 
-        self.createMenu()
+        self.createMenuBar()
         self.setupWidgets()
         self.loadSettings()
 
-    def createMenu(self):
+        self.show()
+
+    def tr(self, message):
+        """Text translation
+
+        Args:
+            message (str): Text to translate
+
+        Returns:
+            QString: Translated string
+        """
+        return QCoreApplication.translate("ProxyFinderGUI", message)
+
+    def createMenuBar(self):
         """Create the menu bar and actions.
         """
-        # Create actions
-        exit_act = QAction("Esci", self)
-        exit_act.setStatusTip("Esci dal programma")
-        exit_act.setShortcut("Ctrl+Q")
-        exit_act.triggered.connect(self.close)
-
-        restore_settings_act = QAction("Ripristina impostazioni", self)
-        restore_settings_act.setStatusTip("Ripristina le impostazioni a quelle predefinite")
-        restore_settings_act.triggered.connect(self.restoreSettings)
-
-        about_act = QAction("A proposito di ProxyFinder", self)
-        about_act.triggered.connect(self.aboutDialog)
-
-        # Create menubar
         menu_bar = self.menuBar()
         menu_bar.setNativeMenuBar(False)
 
+        # File actions
+        exit_act = QAction(self.tr("Exit"), self)
+        exit_act.setShortcut("Ctrl+Q")
+        exit_act.triggered.connect(self.close)
+
+        # Settings actions
+        restore_settings_act = QAction(self.tr("Restore default settings"), self)
+        restore_settings_act.triggered.connect(self.restoreSettings)
+
+        # Language actions
+        lang_group_acts = QActionGroup(self)
+        for loc, name in utils.LANGUAGES.items():
+            lang_act = QAction(name, self)
+            lang_act.setCheckable(True)
+            lang_act.triggered.connect(lambda x, y=loc: self.onChangeLanguage(y))
+            if loc == QLocale().name():
+                lang_act.setChecked(True)
+            lang_group_acts.addAction(lang_act)
+
+        # Help actions
+        about_act = QAction(self.tr("About ProxyFinder"), self)
+        about_act.triggered.connect(self.aboutDialog)
+
         # Create menu in menubar
-        file_menu = menu_bar.addMenu("File")
+        file_menu = menu_bar.addMenu(self.tr("File"))
         file_menu.addAction(exit_act)
 
-        settings_menu = menu_bar.addMenu("Impostazioni")
+        settings_menu = menu_bar.addMenu(self.tr("Settings"))
+        language_menu = settings_menu.addMenu(self.tr("Language"))
+        language_menu.addActions(lang_group_acts.actions())
         settings_menu.addAction(restore_settings_act)
 
-        help_menu = menu_bar.addMenu("Help")
+        help_menu = menu_bar.addMenu(self.tr("Help"))
         help_menu.addAction(about_act)
 
         # Create statusbar
@@ -127,17 +146,17 @@ class ProxyFinderGUI(QMainWindow):
         """Context menu for the tree widget output
         """
         # Actions
-        select_all = QAction("Seleziona tutto")
+        select_all = QAction(self.tr("Select all"))
         select_all.triggered.connect(self.onSelectAll)
         if self.tree_widget_out.topLevelItemCount() == 0:
             select_all.setDisabled(True)
 
-        copy_all = QAction("Copia tutto")
+        copy_all = QAction(self.tr("Copy all"))
         copy_all.triggered.connect(self.copyAllToClipboard)
         if self.tree_widget_out.topLevelItemCount() == 0:
             copy_all.setDisabled(True)
 
-        copy_selected = QAction("Copia selezionati")
+        copy_selected = QAction(self.tr("Copy selected"))
         copy_selected.triggered.connect(self.copySelectionToClipboard)
         if not self.tree_widget_out.selectedItems():
             copy_selected.setDisabled(True)
@@ -157,7 +176,7 @@ class ProxyFinderGUI(QMainWindow):
         """Set up widgets.
         """
         # Url input
-        url_label = QLabel("Url:")
+        url_label = QLabel("URL:")
 
         le = QLineEdit()
         le.setPlaceholderText("Es.: http://www.easybytez.com")
@@ -166,41 +185,42 @@ class ProxyFinderGUI(QMainWindow):
         reg_ex = QRegExp(r"^https?://([a-z0-9]{2,256}\.)?[a-z0-9]{2,256}\.[a-z]{2,6}$")
         self.url_input_cb.setValidator(QRegExpValidator(reg_ex, self.url_input_cb))
         self.url_input_cb.setEditText("")
-        self.url_input_cb.setStatusTip("Sito web su cui verificare i proxy")
+        self.url_input_cb.setStatusTip(self.tr("Website to verify proxies"))
 
         # Tree Widget output
         self.tree_widget_out = QTreeWidget()
-        self.tree_widget_out.setHeaderLabels(["#", "IP", "Porta", "Protocollo", "Errore", "Stato"])
+        self.tree_widget_out.setHeaderLabels(["#", "IP", self.tr("Port"),
+            self.tr("Protocol"), self.tr("Error"), self.tr("State")])
         self.tree_widget_out.setAlternatingRowColors(True)
         self.tree_widget_out.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.tree_widget_out.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree_widget_out.customContextMenuRequested.connect(self.treeContextMenu)
 
         # Tree Widget icons
-        self.fail_icon = QIcon(_image("fail.png"))
-        self.succ_icon = QIcon(_image("success.png"))
+        self.fail_icon = QIcon(utils.image("fail.png"))
+        self.succ_icon = QIcon(utils.image("success.png"))
 
         # Max proxies, threads and connections timeout
-        proxies_max_label = QLabel("Proxy Max.")
+        proxies_max_label = QLabel(self.tr("Max proxies"))
         self.proxies_max_sb = QSpinBox()
         self.proxies_max_sb.setRange(0, 100000)
         self.proxies_max_sb.setSingleStep(500)
-        self.proxies_max_sb.setStatusTip("Numero di proxy da scansionare "
-                                         "(0 = tutti)")
+        self.proxies_max_sb.setStatusTip(self.tr("Maximum number of proxies to "
+            "scan. [0 = No limit]"))
 
-        threads_max_label = QLabel("Threads Max.")
+        threads_max_label = QLabel(self.tr("Max threads"))
         self.threads_max_sb = QSpinBox()
         self.threads_max_sb.setRange(1, 100)
-        self.threads_max_sb.setStatusTip("Numero di connessioni possibili "
-                                         "allo stesso tempo (Raccomandato: 20)")
+        self.threads_max_sb.setStatusTip(self.tr("Maximum number of connections "
+            "at the same time. [Recommended = 20]"))
 
-        timeout_max_label = QLabel("Conn. Timeout Max.")
+        timeout_max_label = QLabel(self.tr("Connection timeout"))
         self.timeout_max_sb = QDoubleSpinBox()
         self.timeout_max_sb.setRange(0, 30)
         self.timeout_max_sb.setSingleStep(0.5)
         self.timeout_max_sb.setSuffix("s")
-        self.timeout_max_sb.setStatusTip("Tempo massimo per ogni connessione "
-                                         "(Raccomandato: 3.05)")
+        self.timeout_max_sb.setStatusTip(self.tr("Maximum time to wait to "
+            "establish a connection. [Recommended = 3.05]"))
 
         max_h_box = QHBoxLayout()
         max_h_box.addWidget(proxies_max_label)
@@ -213,21 +233,21 @@ class ProxyFinderGUI(QMainWindow):
         max_h_box.addWidget(self.timeout_max_sb)
 
         # Buttons
-        self.start_button = QPushButton("Avvia")
+        self.start_button = QPushButton(self.tr("Start"))
         self.start_button.clicked.connect(self.startScan)
 
-        self.stop_button = QPushButton("Annulla")
+        self.stop_button = QPushButton(self.tr("Cancel"))
         self.stop_button.setDisabled(True)
         self.stop_button.clicked.connect(self.stopScan)
 
-        copy_all_button = QPushButton("Copia tutto")
+        copy_all_button = QPushButton(self.tr("Copy all"))
         copy_all_button.clicked.connect(self.copyAllToClipboard)
 
-        copy_sel_button = QPushButton("Copia selezionati")
+        copy_sel_button = QPushButton(self.tr("Copy selected"))
         copy_sel_button.clicked.connect(self.copySelectionToClipboard)
 
         # Show only working checkbox
-        self.only_working_cb = QCheckBox("Mostra solo funzionanti")
+        self.only_working_cb = QCheckBox(self.tr("Show only\nworking proxies"))
         self.only_working_cb.stateChanged.connect(self.onOnlyWorking)
 
         # Progress bar
@@ -271,8 +291,8 @@ class ProxyFinderGUI(QMainWindow):
         """
         # check url input
         if not self.url_input_cb.currentText():
-            QMessageBox.critical(self, "Specificare URL",
-                "Per avviare la scansione è necessario inserire un URL valido.")
+            QMessageBox.critical(self, self.tr("Enter a valid URL"),
+                self.tr("A valid URL must be entered to start the scan."))
             return
         self.addUrlToInput(self.url_input_cb.currentText())
 
@@ -293,14 +313,14 @@ class ProxyFinderGUI(QMainWindow):
         self.stop_button.setDisabled(False)
         self.start_button.setDisabled(True)
 
-        # start worker
+        # start scan
         self.worker.start()
 
     def stopScan(self):
         """Stop scan process
         """
-        message = QMessageBox.question(self, "Ferma scansione",
-            "Sei sicuro di voler fermare la scansione?",
+        message = QMessageBox.question(self, self.tr("Stop the scan"),
+            self.tr("Are you sure you want to stop the scan?"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if message == QMessageBox.Yes:
             self.worker.stop()
@@ -374,6 +394,17 @@ class ProxyFinderGUI(QMainWindow):
         """
         self.tree_widget_out.selectAll()
 
+    def onChangeLanguage(self, locale):
+        """Change localeuage
+
+        Args:
+            locale (str): Locale name
+        """
+        QLocale.setDefault(QLocale(locale))
+        QMessageBox.information(self, self.tr("Relaunch required"),
+            self.tr("You have to quit and relaunch ProxyFinder "
+                    "for this change to take effect."))
+
     def copySelectionToClipboard(self):
         """Copy selected rows in tree widget to the clipboard
         """
@@ -388,8 +419,8 @@ class ProxyFinderGUI(QMainWindow):
         text = "\n".join(item_list)
         if text:
             QApplication.clipboard().setText(text)
-            self.status_bar.showMessage("Tutti i proxy selezionati sono " \
-                                        "stati copiati negli appunti")
+            self.status_bar.showMessage(self.tr("The selected proxies have been "
+                "copied to the clipboard."))
 
     def copyAllToClipboard(self):
         """Copy all rows in tree widget to the clipboard
@@ -408,44 +439,45 @@ class ProxyFinderGUI(QMainWindow):
         text = "\n".join(item_list)
         if text:
             QApplication.clipboard().setText(text)
-            self.status_bar.showMessage("Tutti i proxy sono stati copiati " \
-                                        "negli appunti")
+            self.status_bar.showMessage(self.tr("All proxies have been copied "
+                "to the clipboard."))
 
     def aboutDialog(self):
         """Show simple about dialog
         """
-        QMessageBox.about(self, "A proposito di ProxyFinder",
+        QMessageBox.about(self, self.tr("About ProxyFinder"),
             f"ProxyFinder v{__version__}\n\n"
-            f"Autore: {__author__}\n"
+            f"Author: {__author__}\n"
             f"e-mail: {__email__}")
 
     def saveSettings(self):
         """Save current widgets value
         """
-        self.settings.setValue("MainWindow/geometry", self.saveGeometry())
-        self.settings.setValue("max_proxies", self.proxies_max_sb.value())
-        self.settings.setValue("max_threads", self.threads_max_sb.value())
-        self.settings.setValue("conn_timeout", self.timeout_max_sb.value())
-        self.settings.setValue("only_working_cb", self.only_working_cb.isChecked())
-        self.settings.setValue("url_input_combo",
+        settings.setValue("MainWindow/geometry", self.saveGeometry())
+        settings.setValue("MainWindow/locale", QLocale().name())
+        settings.setValue("max_proxies", self.proxies_max_sb.value())
+        settings.setValue("max_threads", self.threads_max_sb.value())
+        settings.setValue("conn_timeout", self.timeout_max_sb.value())
+        settings.setValue("only_working_cb", self.only_working_cb.isChecked())
+        settings.setValue("url_input_combo",
             [self.url_input_cb.itemText(i) for i in range(self.url_input_cb.count())])
 
     def loadSettings(self):
         """Load saved widgets value
         """
-        if self.settings.value("MainWindow/geometry"):
-            self.restoreGeometry(self.settings.value("MainWindow/geometry"))
+        if settings.value("MainWindow/geometry"):
+            self.restoreGeometry(settings.value("MainWindow/geometry"))
 
         self.proxies_max_sb.setValue(
-            self.settings.value("max_proxies", 0, type=int))
+            settings.value("max_proxies", 0, type=int))
         self.threads_max_sb.setValue(
-            self.settings.value("max_threads", 20, type=int))
+            settings.value("max_threads", 20, type=int))
         self.timeout_max_sb.setValue(
-            self.settings.value("conn_timeout", 3.05, type=float))
+            settings.value("conn_timeout", 3.05, type=float))
         self.url_input_cb.addItems(
-            self.settings.value("url_input_combo", [], type=list))
+            settings.value("url_input_combo", [], type=list))
         self.only_working_cb.setChecked(
-            self.settings.value("only_working_cb", False, type=bool))
+            settings.value("only_working_cb", False, type=bool))
 
     def restoreSettings(self):
         """Restore default settings
@@ -454,15 +486,14 @@ class ProxyFinderGUI(QMainWindow):
             "Sei sicuro di voler ripristinare le impostazioni a quelle iniziali?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if message == QMessageBox.Yes:
-            self.proxies_max_sb.setValue(0)
-            self.threads_max_sb.setValue(20)
-            self.timeout_max_sb.setValue(3.05)
+            settings.clear()
+            self.loadSettings()
 
     def closeEvent(self, event):
         """Things to do when user close the application
         """
-        message = QMessageBox.question(self, "Uscire da ProxyFinder",
-            "Sei sicuro di voler uscrire da ProxyFinder?",
+        message = QMessageBox.question(self, self.tr("Quit application"),
+            self.tr("Are you sure you want to Quit?"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if message == QMessageBox.Yes:
             self.saveSettings()
@@ -472,6 +503,24 @@ class ProxyFinderGUI(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+
+    # translate app
+    locale = QLocale().system()
+    if settings.value("MainWindow/locale"):
+        locale = QLocale(settings.value("MainWindow/locale", type=str))
+
+    app_translator = QTranslator()
+    if app_translator.load(locale, "proxyfinder", ".", utils.LOCALE_PATH, ".qm"):
+        app.installTranslator(app_translator)
+
+    base_translator = QTranslator()
+    if base_translator.load(locale, "qtbase", "_",
+        QLibraryInfo.location(QLibraryInfo.TranslationsPath), ".qm"):
+        app.installTranslator(base_translator)
+
+    # Set default locale
+    QLocale.setDefault(locale)
+
     window = ProxyFinderGUI()
     window.show()
     return app.exec_()
