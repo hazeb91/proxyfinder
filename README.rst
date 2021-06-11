@@ -37,10 +37,10 @@ Installation
 
 .. code-block:: rst
 
-   git clone https://github.com/hazeb91/proxyfinder
-   cd proxyfinder
-   pip install -r requirements.txt
-   python setup.py install
+        git clone https://github.com/hazeb91/proxyfinder
+        cd proxyfinder
+        pip3 install -r requirements.txt
+        python3 setup.py install
 
 
 Usage
@@ -50,8 +50,13 @@ Run the GUI
 
 .. code-block:: rst
 
-   python -m proxyfinder.gui
+        python3 -m proxyfinder.gui
 
+Or run CLI in a terminal
+
+.. code-block:: rst
+
+        python3 -m proxyfinder.cli --url http://google.com
 
 Credits
 -------
