@@ -158,7 +158,7 @@ class ProxyFinder:
         """
         proxy_list = get_proxy_list()
         if self.max_proxies > 0:
-            self.proxy_found = proxy_list[:self.max_proxies - 1]
+            self.proxy_found = proxy_list[:self.max_proxies]
         else:
             self.proxy_found = proxy_list
         return self.proxy_found
