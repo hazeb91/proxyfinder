@@ -229,9 +229,7 @@ class ProxyFinder:
             self.get_proxies()
 
         # Put proxies in queue
-        for i, proxy in enumerate(self.proxy_found, 1):
-            if i == self.max_proxies:
-                break
+        for proxy in self.proxy_found:
             self.proxy_queue.put(proxy)
 
         # Create threads
