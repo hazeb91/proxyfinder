@@ -2,6 +2,11 @@
 History
 =======
 
+0.4.0 (2021-06-13)
+------------------
+
+* Fix a bug that incorrectly truncates the proxy list when a limited number of proxies are specified
+
 0.3.0 (2021-06-10)
 ------------------
 
